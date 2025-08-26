@@ -1,10 +1,13 @@
 package com.example.test2wallpaper
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,15 +21,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.test2wallpaper.ui.theme.Test2WallpaperTheme
-import images
-import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
@@ -40,7 +45,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             Test2WallpaperTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    SafebooruScreen(innerPadding)
+                    MyApp(innerPadding)
                 }
             }
         }
@@ -48,7 +53,45 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun GridImagesLayout(innerPadding: PaddingValues, posts: List<SafebooruPost>) {
+fun MyApp(innerPadding: PaddingValues) {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = "home"
+    ) {
+        composable("home") { SafebooruScreen(innerPadding, navController) }
+        composable("details/{url}") { it ->
+            val url = it.arguments?.getString("url")
+            if (!url.isNullOrEmpty()) {
+                DetailScreen(url, navController)
+            }
+        }
+    }
+}
+
+@Composable
+fun DetailScreen(url: String, navController: NavHostController) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        AsyncImage(
+            model = url,
+            contentDescription = null,
+            modifier = Modifier.clickable {
+                navController.popBackStack()
+            }
+        )
+    }
+}
+
+@Composable
+fun GridImagesLayout(
+    innerPadding: PaddingValues,
+    posts: List<SafebooruPost>,
+    navController: NavHostController
+) {
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Adaptive(200.dp),
         verticalItemSpacing = 10.dp,
@@ -57,8 +100,8 @@ fun GridImagesLayout(innerPadding: PaddingValues, posts: List<SafebooruPost>) {
     ) {
         items(posts) { post ->
             NetworkImage(
-                post.preview_url,
-                post.tags
+                post,
+                navController
             )
         }
     }
@@ -66,14 +109,18 @@ fun GridImagesLayout(innerPadding: PaddingValues, posts: List<SafebooruPost>) {
 
 
 @Composable
-fun NetworkImage(url: String, contentDescription: String?) {
+fun NetworkImage(post: SafebooruPost, navController: NavHostController) {
     AsyncImage(
-        model = url,
-        contentDescription = contentDescription,
+        model = post.preview_url,
+        contentDescription = post.tags,
         contentScale = ContentScale.Crop,
         modifier = Modifier
             .fillMaxSize()
             .wrapContentHeight()
+            .clickable() {
+                val encodedUrl = Uri.encode(post.file_url)
+                navController.navigate("details/$encodedUrl")
+            }
     )
 }
 
@@ -100,19 +147,16 @@ val api: SafebooruApi = Retrofit.Builder()
 
 
 @Composable
-fun SafebooruScreen(innerPadding: PaddingValues) {
+fun SafebooruScreen(innerPadding: PaddingValues, navController: NavHostController) {
     var posts by remember { mutableStateOf<List<SafebooruPost>>(emptyList()) }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        scope.launch {
-            try {
-                posts = api.getPosts(limit = 100, tags = "sky")
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+        try {
+            posts = api.getPosts(limit = 10, tags = "sky")
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
-    GridImagesLayout(innerPadding, posts)
+    GridImagesLayout(innerPadding, posts, navController)
 }
