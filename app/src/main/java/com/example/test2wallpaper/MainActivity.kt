@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,7 +16,9 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,21 +93,34 @@ fun DetailScreen(url: String, navController: NavHostController) {
 fun GridImagesLayout(
     innerPadding: PaddingValues,
     posts: List<SafebooruPost>,
-    navController: NavHostController
+    navController: NavHostController,
+    loadNextPage: () -> Unit,
 ) {
-    LazyVerticalStaggeredGrid(
-        columns = StaggeredGridCells.Adaptive(200.dp),
-        verticalItemSpacing = 10.dp,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.padding(innerPadding)
-    ) {
-        items(posts) { post ->
-            NetworkImage(
-                post,
-                navController
-            )
+    Column {
+        Button(
+            {
+                loadNextPage()
+            },
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            Text("Load More")
         }
+        LazyVerticalStaggeredGrid(
+            columns = StaggeredGridCells.Adaptive(200.dp),
+            verticalItemSpacing = 10.dp,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            items(posts) { post ->
+                NetworkImage(
+                    post,
+                    navController
+                )
+            }
+        }
+
     }
+
 }
 
 
@@ -135,6 +151,7 @@ interface SafebooruApi {
     @GET("index.php?page=dapi&s=post&q=index&json=1")
     suspend fun getPosts(
         @Query("limit") limit: Int = 20,
+        @Query("pid") page: Int = 0,
         @Query("tags") tags: String? = null
     ): List<SafebooruPost>
 }
@@ -147,16 +164,22 @@ val api: SafebooruApi = Retrofit.Builder()
 
 
 @Composable
-fun SafebooruScreen(innerPadding: PaddingValues, navController: NavHostController) {
+fun SafebooruScreen(innerPadding: PaddingValues, navController: NavHostController, page: Int = 0) {
     var posts by remember { mutableStateOf<List<SafebooruPost>>(emptyList()) }
+    var page by remember { mutableStateOf(0) }
 
-    LaunchedEffect(Unit) {
+    fun loadNextPage() {
+        page++
+    }
+
+    LaunchedEffect(page) {
         try {
-            posts = api.getPosts(limit = 10, tags = "sky")
+            posts += api.getPosts(limit = 10,page = page,tags = "blue_sky")
+            println(page)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    GridImagesLayout(innerPadding, posts, navController)
+    GridImagesLayout(innerPadding, posts, navController, { loadNextPage() })
 }
