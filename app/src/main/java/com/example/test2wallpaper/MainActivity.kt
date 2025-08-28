@@ -22,8 +22,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -166,7 +168,7 @@ val api: SafebooruApi = Retrofit.Builder()
 @Composable
 fun SafebooruScreen(innerPadding: PaddingValues, navController: NavHostController, page: Int = 0) {
     var posts by remember { mutableStateOf<List<SafebooruPost>>(emptyList()) }
-    var page by remember { mutableStateOf(0) }
+    var page by rememberSaveable { mutableIntStateOf(0) }
 
     fun loadNextPage() {
         page++
@@ -175,7 +177,6 @@ fun SafebooruScreen(innerPadding: PaddingValues, navController: NavHostControlle
     LaunchedEffect(page) {
         try {
             posts += api.getPosts(limit = 10,page = page,tags = "blue_sky")
-            println(page)
         } catch (e: Exception) {
             e.printStackTrace()
         }
