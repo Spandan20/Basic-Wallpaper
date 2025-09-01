@@ -175,7 +175,7 @@ fun DanbooruScreen(innerPadding: PaddingValues, navController: NavHostController
 
     LaunchedEffect(page) {
         try {
-            posts += api.getPosts(page = page,tags = "sound")
+            posts += api.getPosts(page = page,tags = "guest_art")
         } catch (e: Exception) {
             e.printStackTrace()
         }
