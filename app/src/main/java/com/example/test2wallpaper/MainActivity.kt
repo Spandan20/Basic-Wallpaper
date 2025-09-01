@@ -65,7 +65,7 @@ fun MyApp(innerPadding: PaddingValues) {
         navController = navController,
         startDestination = "home"
     ) {
-        composable("home") { SafebooruScreen(innerPadding, navController) }
+        composable("home") { DanbooruScreen(innerPadding, navController) }
         composable("details/{url}") { it ->
             val url = it.arguments?.getString("url")
             if (!url.isNullOrEmpty()) {
@@ -94,7 +94,7 @@ fun DetailScreen(url: String, navController: NavHostController) {
 @Composable
 fun GridImagesLayout(
     innerPadding: PaddingValues,
-    posts: List<SafebooruPost>,
+    posts: List<DanbooruPost>,
     navController: NavHostController,
     loadNextPage: () -> Unit,
 ) {
@@ -127,9 +127,9 @@ fun GridImagesLayout(
 
 
 @Composable
-fun NetworkImage(post: SafebooruPost, navController: NavHostController) {
+fun NetworkImage(post: DanbooruPost, navController: NavHostController) {
     AsyncImage(
-        model = post.preview_url,
+        model = post.large_file_url,
         contentDescription = post.tags,
         contentScale = ContentScale.Crop,
         modifier = Modifier
@@ -142,32 +142,31 @@ fun NetworkImage(post: SafebooruPost, navController: NavHostController) {
     )
 }
 
-data class SafebooruPost(
+data class DanbooruPost(
     val id: Int,
     val file_url: String,
-    val preview_url: String,
+    val large_file_url: String,
     val tags: String
 )
 
-interface SafebooruApi {
-    @GET("index.php?page=dapi&s=post&q=index&json=1")
+interface DanbooruApi {
+    @GET("posts.json")
     suspend fun getPosts(
-        @Query("limit") limit: Int = 20,
-        @Query("pid") page: Int = 0,
+        @Query("page") page: Int = 0,
         @Query("tags") tags: String? = null
-    ): List<SafebooruPost>
+    ): List<DanbooruPost>
 }
 
-val api: SafebooruApi = Retrofit.Builder()
-    .baseUrl("https://safebooru.org/")
+val api: DanbooruApi = Retrofit.Builder()
+    .baseUrl("https://danbooru.donmai.us/")
     .addConverterFactory(GsonConverterFactory.create())
     .build()
-    .create(SafebooruApi::class.java)
+    .create(DanbooruApi::class.java)
 
 
 @Composable
-fun SafebooruScreen(innerPadding: PaddingValues, navController: NavHostController, page: Int = 0) {
-    var posts by remember { mutableStateOf<List<SafebooruPost>>(emptyList()) }
+fun DanbooruScreen(innerPadding: PaddingValues, navController: NavHostController, page: Int = 0) {
+    var posts by remember { mutableStateOf<List<DanbooruPost>>(emptyList()) }
     var page by rememberSaveable { mutableIntStateOf(0) }
 
     fun loadNextPage() {
@@ -176,7 +175,7 @@ fun SafebooruScreen(innerPadding: PaddingValues, navController: NavHostControlle
 
     LaunchedEffect(page) {
         try {
-            posts += api.getPosts(limit = 10,page = page,tags = "blue_sky")
+            posts += api.getPosts(page = page,tags = "sound")
         } catch (e: Exception) {
             e.printStackTrace()
         }
