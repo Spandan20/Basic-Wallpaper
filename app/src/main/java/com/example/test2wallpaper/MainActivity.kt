@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -30,7 +31,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -50,7 +56,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             Test2WallpaperTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    MyApp(innerPadding)
+                    VideoPlayer(
+                        url= "https://cdn.donmai.us/original/e7/9d/__quaxly_pokemon_and_1_more_drawn_by_nekozemon__e79d031ccf39ea18af32cd16a8080405.mp4",
+                        modifier = Modifier
+                    )
                 }
             }
         }
@@ -129,7 +138,7 @@ fun GridImagesLayout(
 @Composable
 fun NetworkImage(post: DanbooruPost, navController: NavHostController) {
     AsyncImage(
-        model = post.large_file_url,
+        model = post.preview_file_url,
         contentDescription = post.tags,
         contentScale = ContentScale.Crop,
         modifier = Modifier
@@ -146,8 +155,30 @@ data class DanbooruPost(
     val id: Int,
     val file_url: String,
     val large_file_url: String,
+    val preview_file_url: String,
+    val media_asset: MediaAsset,
     val tags: String
 )
+
+data class MediaAsset(
+    val id: Int,
+    val file_ext: String,
+    val variants: List<Variant>
+)
+
+data class Variant(
+    val type: String,
+    val url: String,
+    val width: Int,
+    val height: Int,
+    val file_ext: String
+)
+
+fun DanbooruPost.getUrl(post: DanbooruPost): String? {
+    return post.media_asset.variants
+        .firstOrNull { it.type == "360x360" }
+        ?.url
+}
 
 interface DanbooruApi {
     @GET("posts.json")
@@ -167,7 +198,7 @@ val api: DanbooruApi = Retrofit.Builder()
 @Composable
 fun DanbooruScreen(innerPadding: PaddingValues, navController: NavHostController, page: Int = 0) {
     var posts by remember { mutableStateOf<List<DanbooruPost>>(emptyList()) }
-    var page by rememberSaveable { mutableIntStateOf(0) }
+    var page by rememberSaveable { mutableIntStateOf(1) }
 
     fun loadNextPage() {
         page++
@@ -175,11 +206,42 @@ fun DanbooruScreen(innerPadding: PaddingValues, navController: NavHostController
 
     LaunchedEffect(page) {
         try {
-            posts += api.getPosts(page = page,tags = "guest_art")
+            posts += api.getPosts(page = page,tags = "sound")
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     GridImagesLayout(innerPadding, posts, navController, { loadNextPage() })
+}
+
+@Composable
+fun VideoPlayer(
+    url: String,
+    modifier: Modifier
+) {
+    val context = LocalContext.current
+
+    val exoplayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            val mediaItem = MediaItem.fromUri(Uri.parse(url))
+            setMediaItem(mediaItem)
+            prepare()
+            playWhenReady = true
+        }
+    }
+
+    DisposableEffect(
+        AndroidView(factory = {
+            PlayerView(context).apply {
+                player = exoplayer
+                useController = true
+            }
+        }, modifier = modifier
+        )
+    ) {
+        onDispose {
+            exoplayer.release()
+        }
+    }
 }
